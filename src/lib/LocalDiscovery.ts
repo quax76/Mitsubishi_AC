@@ -192,10 +192,10 @@ async function readMhiTlsFingerprint(
 ): Promise<{ deviceId?: string; mac?: string } | undefined> {
   for (const port of ports) {
     const cert = await readTlsCertificate(host, port, timeoutMs);
-    const org = cert?.subject?.O;
+    const org = firstCertificateValue(cert?.subject?.O);
 
-    if (org && String(org).includes("Mitsubishi Heavy Industries")) {
-      const deviceId = cert?.subject?.CN;
+    if (org && org.includes("Mitsubishi Heavy Industries")) {
+      const deviceId = firstCertificateValue(cert?.subject?.CN);
 
       return {
         deviceId,
@@ -205,6 +205,10 @@ async function readMhiTlsFingerprint(
   }
 
   return undefined;
+}
+
+function firstCertificateValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 async function readTlsCertificate(
