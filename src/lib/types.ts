@@ -14,15 +14,28 @@ export interface DiscoveredDevice extends ConfiguredDevice {
 }
 
 export interface ClimateState {
-  power: boolean;
-  mode: HvacMode;
-  targetTemperature: number;
+  power?: boolean;
+  mode?: HvacMode;
+  targetTemperature?: number;
   roomTemperature?: number;
   outdoorTemperature?: number;
   fanSpeed?: string;
   vaneVertical?: string;
   vaneHorizontal?: string;
   errorCode?: string;
+  rawAirconStat?: string;
+  result?: number;
+  expires?: number;
+  updatedBy?: string;
+  ledStat?: number;
+  autoHeating?: number;
+  highTempRaw?: string;
+  lowTempRaw?: string;
+  wirelessFirmware?: string;
+  mcuFirmware?: string;
+  timezone?: string;
+  numOfAccount?: number;
+  firmType?: string;
 }
 
 export interface ClimateCommand {
