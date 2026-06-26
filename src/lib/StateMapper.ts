@@ -38,6 +38,8 @@ export function climateStateEntries(state: ClimateState): Array<[string, ioBroke
     vaneHorizontal: state.vaneHorizontal,
     errorCode: state.errorCode,
     rawAirconStat: state.rawAirconStat,
+    rawAirconStatHex: state.rawAirconStatHex,
+    rawAirconStatLength: state.rawAirconStatLength,
     result: state.result,
     expires: state.expires,
     updatedBy: state.updatedBy,
