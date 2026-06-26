@@ -2,6 +2,7 @@ import dgram from "node:dgram";
 import http from "node:http";
 import https from "node:https";
 import os from "node:os";
+import * as tls from "node:tls";
 import type { ConfiguredDevice, DiscoveredDevice } from "./types";
 
 export interface LocalDiscoveryOptions {
@@ -13,6 +14,10 @@ export async function discoverLocalDevices(options: LocalDiscoveryOptions): Prom
   const candidates = new Map<string, DiscoveredDevice>();
 
   for (const device of await discoverViaSsdp(options.timeoutMs)) {
+    candidates.set(device.id, device);
+  }
+
+  for (const device of await discoverViaTlsCertificate(options)) {
     candidates.set(device.id, device);
   }
 
@@ -114,6 +119,30 @@ async function discoverViaHttpFingerprint(options: LocalDiscoveryOptions): Promi
   return discovered;
 }
 
+async function discoverViaTlsCertificate(options: LocalDiscoveryOptions): Promise<DiscoveredDevice[]> {
+  const addresses = localSubnetProbeAddresses();
+  const discovered: DiscoveredDevice[] = [];
+  const ports = options.scanPorts.includes(51443) ? options.scanPorts : [51443, ...options.scanPorts];
+
+  await Promise.all(
+    addresses.map(async (address) => {
+      const fingerprint = await readMhiTlsFingerprint(address, ports, Math.min(options.timeoutMs, 1200));
+
+      if (fingerprint) {
+        discovered.push({
+          id: fingerprint.deviceId ?? normalizeDeviceId(address),
+          name: `Smart M-Air ${address}`,
+          host: address,
+          mac: fingerprint.mac,
+          source: "discovered"
+        });
+      }
+    })
+  );
+
+  return discovered;
+}
+
 function localSubnetProbeAddresses(): string[] {
   const addresses = new Set<string>();
 
@@ -154,6 +183,56 @@ async function readMhiHttpFingerprint(
   }
 
   return undefined;
+}
+
+async function readMhiTlsFingerprint(
+  host: string,
+  ports: number[],
+  timeoutMs: number
+): Promise<{ deviceId?: string; mac?: string } | undefined> {
+  for (const port of ports) {
+    const cert = await readTlsCertificate(host, port, timeoutMs);
+    const org = cert?.subject?.O;
+
+    if (org && String(org).includes("Mitsubishi Heavy Industries")) {
+      const deviceId = cert?.subject?.CN;
+
+      return {
+        deviceId,
+        mac: deviceId && deviceId.length === 12 ? deviceId.match(/.{1,2}/g)?.join(":") : undefined
+      };
+    }
+  }
+
+  return undefined;
+}
+
+async function readTlsCertificate(
+  host: string,
+  port: number,
+  timeoutMs: number
+): Promise<tls.PeerCertificate | undefined> {
+  return await new Promise((resolve) => {
+    const socket = tls.connect(
+      {
+        host,
+        port,
+        rejectUnauthorized: false,
+        servername: "mhi"
+      },
+      () => {
+        const cert = socket.getPeerCertificate();
+        socket.destroy();
+        resolve(cert);
+      }
+    );
+
+    socket.setTimeout(timeoutMs, () => {
+      socket.destroy();
+      resolve(undefined);
+    });
+    socket.on("error", () => resolve(undefined));
+  });
 }
 
 async function readHttpProbe(host: string, port: number, timeoutMs: number): Promise<string | undefined> {
