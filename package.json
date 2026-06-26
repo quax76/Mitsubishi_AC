@@ -1,0 +1,41 @@
+{
+  "name": "iobroker.mitsubishi-smartmair",
+  "version": "0.0.1",
+  "description": "ioBroker adapter for Mitsubishi Heavy Smart M-Air air conditioners",
+  "author": "",
+  "license": "MIT",
+  "homepage": "https://github.com/quax76/Mitsubishi_AC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quax76/Mitsubishi_AC.git"
+  },
+  "main": "build/main.js",
+  "keywords": [
+    "ioBroker",
+    "mitsubishi",
+    "climate",
+    "air-conditioner",
+    "smart-m-air"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@iobroker/adapter-core": "^3.1.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "start": "node build/main.js"
+  },
+  "files": [
+    "admin",
+    "build",
+    "io-package.json",
+    "README.md"
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "type": "panel",
+  "items": {
+    "discoveryEnabled": {
+      "type": "checkbox",
+      "label": "Enable local discovery",
+      "default": true
+    },
+    "discoveryTimeoutMs": {
+      "type": "number",
+      "label": "Discovery timeout in milliseconds",
+      "min": 1000,
+      "max": 30000,
+      "default": 5000
+    },
+    "discoveryScanPorts": {
+      "type": "text",
+      "label": "Discovery probe ports",
+      "default": "80,443,51443"
+    },
+    "pollIntervalSeconds": {
+      "type": "number",
+      "label": "Poll interval in seconds",
+      "min": 10,
+      "max": 3600,
+      "default": 30
+    },
+    "commandTimeoutMs": {
+      "type": "number",
+      "label": "Command timeout in milliseconds",
+      "min": 1000,
+      "max": 30000,
+      "default": 5000
+    },
+    "devices": {
+      "type": "table",
+      "label": "Manual devices",
+      "items": [
+        {
+          "attr": "id",
+          "title": "ID",
+          "type": "text",
+          "width": "20%"
+        },
+        {
+          "attr": "name",
+          "title": "Name",
+          "type": "text",
+          "width": "30%"
+        },
+        {
+          "attr": "host",
+          "title": "Host/IP",
+          "type": "text",
+          "width": "25%"
+        },
+        {
+          "attr": "mac",
+          "title": "MAC",
+          "type": "text",
+          "width": "25%"
+        }
+      ]
+    }
+  }
+}

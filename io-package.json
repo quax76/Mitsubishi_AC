@@ -1,0 +1,89 @@
+{
+  "common": {
+    "name": "mitsubishi-smartmair",
+    "version": "0.0.1",
+    "news": {
+      "0.0.1": {
+        "en": "Initial development scaffold",
+        "de": "Erstes Entwicklungsgeruest"
+      }
+    },
+    "titleLang": {
+      "en": "Mitsubishi Smart M-Air",
+      "de": "Mitsubishi Smart M-Air"
+    },
+    "desc": {
+      "en": "Controls Mitsubishi Heavy Smart M-Air air conditioners locally",
+      "de": "Steuert Mitsubishi-Heavy-Smart-M-Air-Klimaanlagen lokal"
+    },
+    "authors": [],
+    "keywords": [
+      "mitsubishi",
+      "climate",
+      "air conditioner",
+      "smart m-air"
+    ],
+    "license": "MIT",
+    "platform": "Javascript/Node.js",
+    "main": "build/main.js",
+    "enabled": true,
+    "readme": "https://github.com/quax76/Mitsubishi_AC/blob/main/README.md",
+    "loglevel": "info",
+    "mode": "daemon",
+    "type": "climate-control",
+    "compact": true,
+    "connectionType": "local",
+    "dataSource": "poll",
+    "materialize": true,
+    "adminUI": {
+      "config": "json"
+    },
+    "dependencies": [
+      {
+        "js-controller": ">=5.0.19"
+      }
+    ],
+    "globalDependencies": [
+      {
+        "admin": ">=6.0.0"
+      }
+    ]
+  },
+  "native": {
+    "pollIntervalSeconds": 30,
+    "commandTimeoutMs": 5000,
+    "discoveryEnabled": true,
+    "discoveryTimeoutMs": 5000,
+    "discoveryScanPorts": [
+      80,
+      443,
+      51443
+    ],
+    "devices": []
+  },
+  "encryptedNative": [],
+  "objects": [],
+  "instanceObjects": [
+    {
+      "_id": "info",
+      "type": "channel",
+      "common": {
+        "name": "Information"
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.connection",
+      "type": "state",
+      "common": {
+        "name": "Connection",
+        "type": "boolean",
+        "role": "indicator.connected",
+        "read": true,
+        "write": false,
+        "def": false
+      },
+      "native": {}
+    }
+  ]
+}
