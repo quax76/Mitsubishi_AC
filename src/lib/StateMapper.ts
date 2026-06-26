@@ -27,7 +27,7 @@ export function commandFromState(stateName: string, value: ioBroker.StateValue):
 }
 
 export function climateStateEntries(state: ClimateState): Array<[string, ioBroker.StateValue]> {
-  return Object.entries({
+  const entries: Array<[string, ioBroker.StateValue | undefined]> = Object.entries({
     power: state.power,
     mode: state.mode,
     targetTemperature: state.targetTemperature,
@@ -36,6 +36,21 @@ export function climateStateEntries(state: ClimateState): Array<[string, ioBroke
     fanSpeed: state.fanSpeed,
     vaneVertical: state.vaneVertical,
     vaneHorizontal: state.vaneHorizontal,
-    errorCode: state.errorCode
-  }).filter((entry): entry is [string, ioBroker.StateValue] => entry[1] !== undefined);
+    errorCode: state.errorCode,
+    rawAirconStat: state.rawAirconStat,
+    result: state.result,
+    expires: state.expires,
+    updatedBy: state.updatedBy,
+    ledStat: state.ledStat,
+    autoHeating: state.autoHeating,
+    highTempRaw: state.highTempRaw,
+    lowTempRaw: state.lowTempRaw,
+    wirelessFirmware: state.wirelessFirmware,
+    mcuFirmware: state.mcuFirmware,
+    timezone: state.timezone,
+    numOfAccount: state.numOfAccount,
+    firmType: state.firmType
+  });
+
+  return entries.filter((entry): entry is [string, ioBroker.StateValue] => entry[1] !== undefined);
 }
