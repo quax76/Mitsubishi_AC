@@ -56,8 +56,12 @@ export class LocalSmartMAirClient {
       throw new Error(`Smart M-Air response for ${device.id} did not include contents`);
     }
 
+    const rawAirconStatBytes = contents.airconStat ? Buffer.from(contents.airconStat, "base64") : undefined;
+
     return {
       rawAirconStat: contents.airconStat,
+      rawAirconStatHex: rawAirconStatBytes ? rawAirconStatBytes.toString("hex") : undefined,
+      rawAirconStatLength: rawAirconStatBytes?.length,
       result: response.result,
       expires: contents.expires,
       updatedBy: contents.updatedBy,
