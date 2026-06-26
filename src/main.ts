@@ -185,6 +185,8 @@ class MitsubishiSmartMAirAdapter extends utils.Adapter {
     await this.ensureState(`devices.${device.id}.status.vaneHorizontal`, "", "string", "state", true, false);
     await this.ensureState(`devices.${device.id}.status.errorCode`, "", "string", "state", true, false);
     await this.ensureState(`devices.${device.id}.status.rawAirconStat`, "", "string", "state", true, false);
+    await this.ensureState(`devices.${device.id}.status.rawAirconStatHex`, "", "string", "state", true, false);
+    await this.ensureState(`devices.${device.id}.status.rawAirconStatLength`, 0, "number", "value", true, false);
     await this.ensureState(`devices.${device.id}.status.result`, 0, "number", "value", true, false);
     await this.ensureState(`devices.${device.id}.status.expires`, 0, "number", "date", true, false);
     await this.ensureState(`devices.${device.id}.status.updatedBy`, "", "string", "state", true, false);
