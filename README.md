@@ -29,3 +29,13 @@ Discovery is enabled by default. Devices can also be added manually in the adapt
   ]
 }
 ```
+
+## Local device scan
+
+To find Mitsubishi Heavy Smart M-Air devices on a local subnet:
+
+```bash
+node tools/scan-mhi-devices.js 172.23.1 51443
+```
+
+The script only performs TLS handshakes and checks for Mitsubishi Heavy certificate metadata. It does not send control commands.
