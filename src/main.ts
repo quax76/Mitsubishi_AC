@@ -1,11 +1,12 @@
 import * as utils from "@iobroker/adapter-core";
-import { PlaceholderMitsubishiClient, type MitsubishiClient } from "./lib/MitsubishiClient";
+import type { MitsubishiClient } from "./lib/MitsubishiClient";
 import { discoverLocalDevices, mergeDevices } from "./lib/LocalDiscovery";
+import { LocalSmartMAirClient } from "./lib/LocalSmartMAirClient";
 import { climateStateEntries, commandFromState, VALID_MODES } from "./lib/StateMapper";
 import type { AdapterNativeConfig, ClimateState, ConfiguredDevice } from "./lib/types";
 
 class MitsubishiSmartMAirAdapter extends utils.Adapter {
-  private readonly client: MitsubishiClient;
+  private client?: MitsubishiClient;
   private pollTimer?: NodeJS.Timeout;
   private devices: ConfiguredDevice[] = [];
 
@@ -14,8 +15,6 @@ class MitsubishiSmartMAirAdapter extends utils.Adapter {
       ...options,
       name: "mitsubishi-smartmair"
     });
-
-    this.client = new PlaceholderMitsubishiClient();
 
     this.on("ready", this.onReady.bind(this));
     this.on("stateChange", this.onStateChange.bind(this));
@@ -27,6 +26,9 @@ class MitsubishiSmartMAirAdapter extends utils.Adapter {
 
     const nativeConfig = this.config as AdapterNativeConfig;
     this.devices = nativeConfig.devices ?? [];
+    this.client = new LocalSmartMAirClient({
+      timeoutMs: nativeConfig.commandTimeoutMs ?? 5000
+    });
 
     if (nativeConfig.discoveryEnabled ?? true) {
       const discovered = await discoverLocalDevices({
@@ -80,7 +82,10 @@ class MitsubishiSmartMAirAdapter extends utils.Adapter {
 
     for (const device of this.devices) {
       try {
-        const state = await this.client.getState(device);
+        const state = await this.client?.getState(device);
+        if (!state) {
+          throw new Error("Smart M-Air client is not initialized");
+        }
         await this.writeClimateState(device.id, state);
         await this.setStateAsync(`devices.${device.id}.info.online`, true, true);
         await this.setStateAsync(`devices.${device.id}.info.lastSeen`, new Date().toISOString(), true);
@@ -118,6 +123,10 @@ class MitsubishiSmartMAirAdapter extends utils.Adapter {
     }
 
     try {
+      if (!this.client) {
+        throw new Error("Smart M-Air client is not initialized");
+      }
+
       const nextState = await this.client.setState(device, command);
       await this.writeClimateState(device.id, nextState);
       await this.setStateAsync(`devices.${device.id}.control.${parsed.stateName}`, state.val, true);
@@ -175,6 +184,19 @@ class MitsubishiSmartMAirAdapter extends utils.Adapter {
     await this.ensureState(`devices.${device.id}.status.vaneVertical`, "", "string", "state", true, false);
     await this.ensureState(`devices.${device.id}.status.vaneHorizontal`, "", "string", "state", true, false);
     await this.ensureState(`devices.${device.id}.status.errorCode`, "", "string", "state", true, false);
+    await this.ensureState(`devices.${device.id}.status.rawAirconStat`, "", "string", "state", true, false);
+    await this.ensureState(`devices.${device.id}.status.result`, 0, "number", "value", true, false);
+    await this.ensureState(`devices.${device.id}.status.expires`, 0, "number", "date", true, false);
+    await this.ensureState(`devices.${device.id}.status.updatedBy`, "", "string", "state", true, false);
+    await this.ensureState(`devices.${device.id}.status.ledStat`, 0, "number", "value", true, false);
+    await this.ensureState(`devices.${device.id}.status.autoHeating`, 0, "number", "value", true, false);
+    await this.ensureState(`devices.${device.id}.status.highTempRaw`, "", "string", "state", true, false);
+    await this.ensureState(`devices.${device.id}.status.lowTempRaw`, "", "string", "state", true, false);
+    await this.ensureState(`devices.${device.id}.status.wirelessFirmware`, "", "string", "state", true, false);
+    await this.ensureState(`devices.${device.id}.status.mcuFirmware`, "", "string", "state", true, false);
+    await this.ensureState(`devices.${device.id}.status.timezone`, "", "string", "state", true, false);
+    await this.ensureState(`devices.${device.id}.status.numOfAccount`, 0, "number", "value", true, false);
+    await this.ensureState(`devices.${device.id}.status.firmType`, "", "string", "state", true, false);
 
     await this.ensureState(`devices.${device.id}.control.power`, false, "boolean", "switch.power", true, true);
     await this.ensureState(`devices.${device.id}.control.mode`, "auto", "string", "state", true, true, VALID_MODES);
