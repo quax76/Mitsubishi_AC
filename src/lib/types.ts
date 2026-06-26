@@ -24,6 +24,8 @@ export interface ClimateState {
   vaneHorizontal?: string;
   errorCode?: string;
   rawAirconStat?: string;
+  rawAirconStatHex?: string;
+  rawAirconStatLength?: number;
   result?: number;
   expires?: number;
   updatedBy?: string;
