@@ -21,6 +21,8 @@ export function commandFromState(stateName: string, value: ioBroker.StateValue):
       return value === null || value === undefined ? undefined : { vaneVertical: String(value) };
     case "vaneHorizontal":
       return value === null || value === undefined ? undefined : { vaneHorizontal: String(value) };
+    case "auto3d":
+      return { auto3d: Boolean(value) };
     default:
       return undefined;
   }
@@ -33,9 +35,11 @@ export function climateStateEntries(state: ClimateState): Array<[string, ioBroke
     targetTemperature: state.targetTemperature,
     roomTemperature: state.roomTemperature,
     outdoorTemperature: state.outdoorTemperature,
+    energyConsumption: state.energyConsumption,
     fanSpeed: state.fanSpeed,
     vaneVertical: state.vaneVertical,
     vaneHorizontal: state.vaneHorizontal,
+    auto3d: state.auto3d,
     errorCode: state.errorCode,
     rawAirconStat: state.rawAirconStat,
     rawAirconStatHex: state.rawAirconStatHex,

@@ -29,6 +29,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "test:protocol": "pnpm build && node --test test/aircon-stat-*.test.js",
     "watch": "tsc -p tsconfig.json --watch",
     "start": "node build/main.js"
   },
@@ -36,6 +37,7 @@
     "admin",
     "build",
     "io-package.json",
-    "README.md"
+    "README.md",
+    "THIRD_PARTY_NOTICES.md"
   ]
 }

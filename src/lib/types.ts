@@ -19,9 +19,11 @@ export interface ClimateState {
   targetTemperature?: number;
   roomTemperature?: number;
   outdoorTemperature?: number;
+  energyConsumption?: number;
   fanSpeed?: string;
   vaneVertical?: string;
   vaneHorizontal?: string;
+  auto3d?: boolean;
   errorCode?: string;
   rawAirconStat?: string;
   rawAirconStatHex?: string;
@@ -47,11 +49,13 @@ export interface ClimateCommand {
   fanSpeed?: string;
   vaneVertical?: string;
   vaneHorizontal?: string;
+  auto3d?: boolean;
 }
 
 export interface AdapterNativeConfig {
   pollIntervalSeconds?: number;
   commandTimeoutMs?: number;
+  operatorId?: string;
   discoveryEnabled?: boolean;
   discoveryTimeoutMs?: number;
   discoveryScanPorts?: number[] | string;

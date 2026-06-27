@@ -27,7 +27,8 @@ class MitsubishiSmartMAirAdapter extends utils.Adapter {
     const nativeConfig = this.config as AdapterNativeConfig;
     this.devices = nativeConfig.devices ?? [];
     this.client = new LocalSmartMAirClient({
-      timeoutMs: nativeConfig.commandTimeoutMs ?? 5000
+      timeoutMs: nativeConfig.commandTimeoutMs ?? 5000,
+      operatorId: nativeConfig.operatorId?.trim() || undefined
     });
 
     if (nativeConfig.discoveryEnabled ?? true) {
@@ -180,9 +181,11 @@ class MitsubishiSmartMAirAdapter extends utils.Adapter {
     await this.ensureState(`devices.${device.id}.status.targetTemperature`, 21, "number", "value.temperature", true, false, undefined, "C", 16, 31);
     await this.ensureState(`devices.${device.id}.status.roomTemperature`, 0, "number", "value.temperature", true, false, undefined, "C");
     await this.ensureState(`devices.${device.id}.status.outdoorTemperature`, 0, "number", "value.temperature", true, false, undefined, "C");
+    await this.ensureState(`devices.${device.id}.status.energyConsumption`, 0, "number", "value.power.consumption", true, false, undefined, "kWh");
     await this.ensureState(`devices.${device.id}.status.fanSpeed`, "", "string", "state", true, false);
     await this.ensureState(`devices.${device.id}.status.vaneVertical`, "", "string", "state", true, false);
     await this.ensureState(`devices.${device.id}.status.vaneHorizontal`, "", "string", "state", true, false);
+    await this.ensureState(`devices.${device.id}.status.auto3d`, false, "boolean", "indicator", true, false);
     await this.ensureState(`devices.${device.id}.status.errorCode`, "", "string", "state", true, false);
     await this.ensureState(`devices.${device.id}.status.rawAirconStat`, "", "string", "state", true, false);
     await this.ensureState(`devices.${device.id}.status.rawAirconStatHex`, "", "string", "state", true, false);
@@ -206,6 +209,7 @@ class MitsubishiSmartMAirAdapter extends utils.Adapter {
     await this.ensureState(`devices.${device.id}.control.fanSpeed`, "", "string", "state", true, true);
     await this.ensureState(`devices.${device.id}.control.vaneVertical`, "", "string", "state", true, true);
     await this.ensureState(`devices.${device.id}.control.vaneHorizontal`, "", "string", "state", true, true);
+    await this.ensureState(`devices.${device.id}.control.auto3d`, false, "boolean", "switch", true, true);
     await this.ensureState(`devices.${device.id}.control.refresh`, false, "boolean", "button", true, true);
   }
 
@@ -265,7 +269,7 @@ class MitsubishiSmartMAirAdapter extends utils.Adapter {
       await this.setStateAsync(`devices.${deviceId}.status.${name}`, value, true);
       const controlId = `devices.${deviceId}.control.${name}`;
 
-      if (["power", "mode", "targetTemperature", "fanSpeed", "vaneVertical", "vaneHorizontal"].includes(name)) {
+      if (["power", "mode", "targetTemperature", "fanSpeed", "vaneVertical", "vaneHorizontal", "auto3d"].includes(name)) {
         await this.setStateAsync(controlId, value, true);
       }
     }

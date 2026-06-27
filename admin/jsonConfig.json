@@ -32,6 +32,11 @@
       "max": 30000,
       "default": 5000
     },
+    "operatorId": {
+      "type": "text",
+      "label": "Registered Smart M-Air operator ID (optional)",
+      "help": "Leave empty to reuse the first registered operator ID reported by the device."
+    },
     "devices": {
       "type": "table",
       "label": "Manual devices",

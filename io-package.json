@@ -52,6 +52,7 @@
   "native": {
     "pollIntervalSeconds": 30,
     "commandTimeoutMs": 5000,
+    "operatorId": "",
     "discoveryEnabled": true,
     "discoveryTimeoutMs": 5000,
     "discoveryScanPorts": [
