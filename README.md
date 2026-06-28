@@ -25,13 +25,36 @@ Hardware validation completed so far:
 - Horizontal vane `both-left -> swing -> both-left`, with all unrelated controls preserved.
 - 3D Auto `off -> on -> off`, followed by explicit restoration of the original vane positions.
 
+## Installation from GitHub
+
+Install the development version through ioBroker Admin's custom URL dialog using:
+
+```text
+https://github.com/quax76/ioBroker.mitsubishi-smartmair
+```
+
+After installing the adapter package, create one `mitsubishi-smartmair` instance
+with the `+` button in ioBroker Admin. This separation between package installation
+and instance creation is standard ioBroker behavior. On its first start, the
+instance discovers all reachable Smart M-Air units, saves them by MAC address and
+creates every state automatically. No device entry is required.
+
+For command-line installation, use:
+
+```bash
+iobroker url https://github.com/quax76/ioBroker.mitsubishi-smartmair
+iobroker add mitsubishi-smartmair --enabled
+```
+
+Discovery scans the local `/24` networks known to the ioBroker host. Additional
+networks can be entered in the instance settings, for example `172.23.1.0/24`.
+
 ## Next steps
 
 1. Decode remaining `airconStat` fields such as measured temperatures, error state and special functions.
 2. Validate each `setAirconStat` command type on hardware.
 3. Expand regression tests as additional device models are tested.
-4. Run automatic local device discovery whenever the adapter starts and merge the results with the saved configuration.
-5. Add persistent device naming in the adapter configuration. Match discovered units by normalized MAC address (with device ID as a fallback), preserve the assigned name when an IP address changes, and expose newly discovered units for naming without losing existing assignments.
+4. Add model-specific validation as more Mitsubishi Heavy units become available.
 
 ## Manual device configuration
 
@@ -90,3 +113,20 @@ node tools/capture-status.js 172.23.1.66=348e89becfe1 "power on"
 ```
 
 Captures are appended to `measurements/<deviceId>.jsonl`. Change only one setting between captures and wait a few seconds for the indoor unit to apply it. The output lists every changed byte, its XOR mask and the changed bit positions.
+
+## Changelog
+
+### 0.0.2
+
+- Fixed GitHub installation metadata and committed build output.
+- Added bounded automatic LAN discovery with port `51443` priority.
+- Persist discovered devices by MAC address while preserving assigned names.
+- Added optional additional `/24` discovery networks.
+
+### 0.0.1
+
+- Initial local protocol implementation.
+
+## License
+
+MIT License. See [LICENSE](LICENSE).

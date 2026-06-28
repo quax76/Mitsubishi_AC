@@ -32,13 +32,25 @@ class MitsubishiSmartMAirAdapter extends utils.Adapter {
     });
 
     if (nativeConfig.discoveryEnabled ?? true) {
+      const hostObject = await this.getForeignObjectAsync(`system.host.${this.host}`);
+      const hostAddresses = (hostObject?.common as { address?: string[] } | undefined)?.address ?? [];
       const discovered = await discoverLocalDevices({
         timeoutMs: nativeConfig.discoveryTimeoutMs ?? 5000,
-        scanPorts: this.parseScanPorts(nativeConfig.discoveryScanPorts)
+        scanPorts: this.parseScanPorts(nativeConfig.discoveryScanPorts),
+        seedAddresses: hostAddresses,
+        subnets: this.parseDiscoverySubnets(nativeConfig.discoverySubnets),
+        concurrency: 32
       });
 
-      this.devices = mergeDevices(this.devices, discovered);
+      const mergedDevices = mergeDevices(this.devices, discovered);
+      const configurationChanged = JSON.stringify(mergedDevices) !== JSON.stringify(this.devices);
+      this.devices = mergedDevices;
       this.log.info(`Local discovery found ${discovered.length} possible Smart M-Air device(s)`);
+
+      if (configurationChanged) {
+        await this.persistDevices();
+        this.log.info(`Saved ${this.devices.length} Smart M-Air device(s) in the adapter configuration`);
+      }
     }
 
     await this.subscribeStatesAsync("devices.*.control.*");
@@ -75,222 +87,46 @@ class MitsubishiSmartMAirAdapter extends utils.Adapter {
       return ports.length > 0 ? ports : [80, 443, 51443];
     }
 
-    return [80, 443, 51443];
-  }
-
-  private async refreshAllDevices(): Promise<void> {
-    let connected = false;
-
-    for (const device of this.devices) {
-      try {
-        const state = await this.client?.getState(device);
-        if (!state) {
-          throw new Error("Smart M-Air client is not initialized");
+    ret}{Áùm¢Gß≤⁄Óù∆≠y‘Ms) {
+    for (const port of ports) {
+        const cert = await readTlsCertificate(host, port, timeoutMs);
+        const org = firstCertificateValue(cert?.subject?.O);
+        if (org && org.includes("Mitsubishi Heavy Industries")) {
+            const deviceId = firstCertificateValue(cert?.subject?.CN);
+            return {
+                deviceId,
+                mac: deviceId && deviceId.length === 12 ? deviceId.match(/.{1,2}/g)?.join(":") : undefined
+            };
         }
-        await this.writeClimateState(device.id, state);
-        await this.setStateAsync(`devices.${device.id}.info.online`, true, true);
-        await this.setStateAsync(`devices.${device.id}.info.lastSeen`, new Date().toISOString(), true);
-        connected = true;
-      } catch (error: unknown) {
-        await this.setStateAsync(`devices.${device.id}.info.online`, false, true);
-        this.log.debug(`Could not refresh ${device.id}: ${String(error)}`);
-      }
     }
-
-    await this.setStateAsync("info.connection", connected, true);
-  }
-
-  private async onStateChange(id: string, state: ioBroker.State | null | undefined): Promise<void> {
-    if (!state || state.ack) {
-      return;
-    }
-
-    const parsed = this.parseControlStateId(id);
-    if (!parsed) {
-      return;
-    }
-
-    if (parsed.stateName === "refresh") {
-      await this.refreshAllDevices();
-      return;
-    }
-
-    const device = this.devices.find((entry) => entry.id === parsed.deviceId);
-    const command = commandFromState(parsed.stateName, state.val);
-
-    if (!device || !command) {
-      this.log.warn(`Ignoring unsupported command state ${id}`);
-      return;
-    }
-
-    try {
-      if (!this.client) {
-        throw new Error("Smart M-Air client is not initialized");
-      }
-
-      const nextState = await this.client.setState(device, command);
-      await this.writeClimateState(device.id, nextState);
-      await this.setStateAsync(`devices.${device.id}.control.${parsed.stateName}`, state.val, true);
-    } catch (error: unknown) {
-      this.log.warn(`Command failed for ${device.id}.${parsed.stateName}: ${String(error)}`);
-    }
-  }
-
-  private parseControlStateId(id: string): { deviceId: string; stateName: string } | undefined {
-    const prefix = `${this.namespace}.devices.`;
-
-    if (!id.startsWith(prefix)) {
-      return undefined;
-    }
-
-    const parts = id.slice(prefix.length).split(".");
-    if (parts.length !== 3 || parts[1] !== "control") {
-      return undefined;
-    }
-
-    return {
-      deviceId: parts[0],
-      stateName: parts[2]
-    };
-  }
-
-  private async ensureDeviceObjects(device: ConfiguredDevice): Promise<void> {
-    await this.setObjectNotExistsAsync(`devices.${device.id}`, {
-      type: "device",
-      common: {
-        name: device.name
-      },
-      native: {
-        host: device.host,
-        mac: device.mac
-      }
-    });
-
-    await this.ensureChannel(device.id, "info", "Information");
-    await this.ensureChannel(device.id, "status", "Status");
-    await this.ensureChannel(device.id, "control", "Control");
-
-    await this.ensureState(`devices.${device.id}.info.name`, device.name, "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.info.host`, device.host ?? "", "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.info.mac`, device.mac ?? "", "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.info.online`, false, "boolean", "indicator.connected", true, false);
-    await this.ensureState(`devices.${device.id}.info.lastSeen`, "", "string", "date", true, false);
-
-    await this.ensureState(`devices.${device.id}.status.power`, false, "boolean", "switch.power", true, false);
-    await this.ensureState(`devices.${device.id}.status.mode`, "auto", "string", "state", true, false, VALID_MODES);
-    await this.ensureState(`devices.${device.id}.status.targetTemperature`, 21, "number", "value.temperature", true, false, undefined, "C", 16, 31);
-    await this.ensureState(`devices.${device.id}.status.roomTemperature`, 0, "number", "value.temperature", true, false, undefined, "C");
-    await this.ensureState(`devices.${device.id}.status.outdoorTemperature`, 0, "number", "value.temperature", true, false, undefined, "C");
-    await this.ensureState(`devices.${device.id}.status.energyConsumption`, 0, "number", "value.power.consumption", true, false, undefined, "kWh");
-    await this.ensureState(`devices.${device.id}.status.fanSpeed`, "", "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.status.vaneVertical`, "", "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.status.vaneHorizontal`, "", "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.status.auto3d`, false, "boolean", "indicator", true, false);
-    await this.ensureState(`devices.${device.id}.status.errorCode`, "", "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.status.rawAirconStat`, "", "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.status.rawAirconStatHex`, "", "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.status.rawAirconStatLength`, 0, "number", "value", true, false);
-    await this.ensureState(`devices.${device.id}.status.result`, 0, "number", "value", true, false);
-    await this.ensureState(`devices.${device.id}.status.expires`, 0, "number", "date", true, false);
-    await this.ensureState(`devices.${device.id}.status.updatedBy`, "", "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.status.ledStat`, 0, "number", "value", true, false);
-    await this.ensureState(`devices.${device.id}.status.autoHeating`, 0, "number", "value", true, false);
-    await this.ensureState(`devices.${device.id}.status.highTempRaw`, "", "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.status.lowTempRaw`, "", "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.status.wirelessFirmware`, "", "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.status.mcuFirmware`, "", "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.status.timezone`, "", "string", "state", true, false);
-    await this.ensureState(`devices.${device.id}.status.numOfAccount`, 0, "number", "value", true, false);
-    await this.ensureState(`devices.${device.id}.status.firmType`, "", "string", "state", true, false);
-
-    await this.ensureState(`devices.${device.id}.control.power`, false, "boolean", "switch.power", true, true);
-    await this.ensureState(`devices.${device.id}.control.mode`, "auto", "string", "state", true, true, VALID_MODES);
-    await this.ensureState(`devices.${device.id}.control.targetTemperature`, 21, "number", "level.temperature", true, true, undefined, "C", 16, 31);
-    await this.ensureState(`devices.${device.id}.control.fanSpeed`, "", "string", "state", true, true);
-    await this.ensureState(`devices.${device.id}.control.vaneVertical`, "", "string", "state", true, true);
-    await this.ensureState(`devices.${device.id}.control.vaneHorizontal`, "", "string", "state", true, true);
-    await this.ensureState(`devices.${device.id}.control.auto3d`, false, "boolean", "switch", true, true);
-    await this.ensureState(`devices.${device.id}.control.refresh`, false, "boolean", "button", true, true);
-  }
-
-  private async ensureChannel(deviceId: string, channel: string, name: string): Promise<void> {
-    await this.setObjectNotExistsAsync(`devices.${deviceId}.${channel}`, {
-      type: "channel",
-      common: {
-        name
-      },
-      native: {}
-    });
-  }
-
-  private async ensureState(
-    id: string,
-    def: ioBroker.StateValue,
-    type: ioBroker.CommonType,
-    role: string,
-    read: boolean,
-    write: boolean,
-    states?: readonly string[],
-    unit?: string,
-    min?: number,
-    max?: number
-  ): Promise<void> {
-    const common: ioBroker.StateCommon = {
-      name: id.split(".").at(-1) ?? id,
-      type,
-      role,
-      read,
-      write,
-      def
-    };
-
-    if (states) {
-      common.states = Object.fromEntries(states.map((value) => [value, value]));
-    }
-    if (unit) {
-      common.unit = unit;
-    }
-    if (min !== undefined) {
-      common.min = min;
-    }
-    if (max !== undefined) {
-      common.max = max;
-    }
-
-    await this.setObjectNotExistsAsync(id, {
-      type: "state",
-      common,
-      native: {}
-    });
-  }
-
-  private async writeClimateState(deviceId: string, climateState: ClimateState): Promise<void> {
-    for (const [name, value] of climateStateEntries(climateState)) {
-      await this.setStateAsync(`devices.${deviceId}.status.${name}`, value, true);
-      const controlId = `devices.${deviceId}.control.${name}`;
-
-      if (["power", "mode", "targetTemperature", "fanSpeed", "vaneVertical", "vaneHorizontal", "auto3d"].includes(name)) {
-        await this.setStateAsync(controlId, value, true);
-      }
-    }
-  }
-
-  private onUnload(callback: () => void): void {
-    try {
-      if (this.pollTimer) {
-        clearInterval(this.pollTimer);
-        this.pollTimer = undefined;
-      }
-      callback();
-    } catch {
-      callback();
-    }
-  }
+    return undefined;
 }
-
-if (require.main !== module) {
-  module.exports = (options: Partial<utils.AdapterOptions> | undefined): MitsubishiSmartMAirAdapter =>
-    new MitsubishiSmartMAirAdapter(options);
-} else {
-  new MitsubishiSmartMAirAdapter();
+function firstCertificateValue(value) {
+    return Array.isArray(value) ? value[0] : value;
+}
+async function readTlsCertificate(host, port, timeoutMs) {
+    return await new Promise((resolve) => {
+        const socket = tls.connect({
+            host,
+            port,
+            rejectUnauthorized: false,
+            servername: "mhi"
+        }, () => {
+            const cert = socket.getPeerCertificate();
+            socket.destroy();
+            resolve(cert);
+        });
+        socket.setTimeout(timeoutMs, () => {
+            socket.destroy();
+            resolve(undefined);
+        });
+        socket.on("error", () => resolve(undefined));
+    });
+}
+function looksLikeMhiDevice(response) {
+    const lower = response.toLowerCase();
+    return lower.includes("m-air") || lower.includes("smart m") || lower.includes("mitsubishi") || lower.includes("mhi");
+}
+function normalizeDeviceId(value) {
+    return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }

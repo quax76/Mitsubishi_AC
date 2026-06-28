@@ -1,13 +1,13 @@
 {
   "name": "iobroker.mitsubishi-smartmair",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "ioBroker adapter for Mitsubishi Heavy Smart M-Air air conditioners",
-  "author": "",
+  "author": "quax76",
   "license": "MIT",
-  "homepage": "https://github.com/quax76/Mitsubishi_AC",
+  "homepage": "https://github.com/quax76/ioBroker.mitsubishi-smartmair",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/quax76/Mitsubishi_AC.git"
+    "url": "git+https://github.com/quax76/ioBroker.mitsubishi-smartmair.git"
   },
   "main": "build/main.js",
   "keywords": [
@@ -18,10 +18,10 @@
     "smart-m-air"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "dependencies": {
-    "@iobroker/adapter-core": "^3.1.6"
+    "@iobroker/adapter-core": "^3.4.1"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
@@ -29,8 +29,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "prepare": "npm run build",
-    "test:protocol": "pnpm build && node --test test/aircon-stat-*.test.js",
+    "prepare": "tsc -p tsconfig.json",
+    "test:protocol": "pnpm build && node --test test/aircon-stat-decoder.test.js test/aircon-stat-encoder.test.js test/local-discovery.test.js",
     "watch": "tsc -p tsconfig.json --watch",
     "start": "node build/main.js"
   },

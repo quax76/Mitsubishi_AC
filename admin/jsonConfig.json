@@ -16,7 +16,13 @@
     "discoveryScanPorts": {
       "type": "text",
       "label": "Discovery probe ports",
-      "default": "80,443,51443"
+      "default": "51443"
+    },
+    "discoverySubnets": {
+      "type": "text",
+      "label": "Additional discovery subnets",
+      "help": "Optional comma-separated /24 networks, for example 172.23.1.0/24",
+      "default": ""
     },
     "pollIntervalSeconds": {
       "type": "number",
