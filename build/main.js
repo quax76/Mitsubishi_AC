@@ -52,7 +52,12 @@ class MitsubishiSmartMAirAdapter extends utils.Adapter {
     }
     async onReady() {
         await this.setStateAsync("info.connection", false, true);
-        const nativeConfig = this.config;
+        const instanceObject = await this.getForeignObjectAsync(`system.adapter.${this.namespace}`);
+        const persistedNative = (instanceObject?.native ?? {});
+        const nativeConfig = {
+            ...this.config,
+            ...persistedNative
+        };
         this.devices = nativeConfig.devices ?? [];
         this.client = new LocalSmartMAirClient_1.LocalSmartMAirClient({
             timeoutMs: nativeConfig.commandTimeoutMs ?? 5000,
@@ -197,12 +202,24 @@ class MitsubishiSmartMAirAdapter extends utils.Adapter {
                 mac: device.mac
             }
         });
+        await this.extendObjectAsync(`devices.${device.id}`, {
+            common: {
+                name: device.name
+            },
+            native: {
+                host: device.host,
+                mac: device.mac
+            }
+        });
         await this.ensureChannel(device.id, "info", "Information");
         await this.ensureChannel(device.id, "status", "Status");
         await this.ensureChannel(device.id, "control", "Control");
         await this.ensureState(`devices.${device.id}.info.name`, device.name, "string", "state", true, false);
         await this.ensureState(`devices.${device.id}.info.host`, device.host ?? "", "string", "state", true, false);
         await this.ensureState(`devices.${device.id}.info.mac`, device.mac ?? "", "string", "state", true, false);
+        await this.setStateAsync(`devices.${device.id}.info.name`, device.name, true);
+        await this.setStateAsync(`devices.${device.id}.info.host`, device.host ?? "", true);
+        await this.setStateAsync(`devices.${device.id}.info.mac`, device.mac ?? "", true);
         await this.ensureState(`devices.${device.id}.info.online`, false, "boolean", "indicator.connected", true, false);
         await this.ensureState(`devices.${device.id}.info.lastSeen`, "", "string", "date", true, false);
         await this.ensureState(`devices.${device.id}.status.power`, false, "boolean", "switch.power", true, false);
@@ -304,3 +321,4 @@ if (require.main !== module) {
 else {
     new MitsubishiSmartMAirAdapter();
 }
+

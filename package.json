@@ -1,6 +1,6 @@
 {
   "name": "iobroker.mitsubishi-smartmair",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "ioBroker adapter for Mitsubishi Heavy Smart M-Air air conditioners",
   "author": "quax76",
   "license": "MIT",
@@ -41,3 +41,4 @@
     "THIRD_PARTY_NOTICES.md"
   ]
 }
+

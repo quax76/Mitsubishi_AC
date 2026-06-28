@@ -116,6 +116,10 @@ Captures are appended to `measurements/<deviceId>.jsonl`. Change only one settin
 
 ## Changelog
 
+### 0.0.4
+
+- Load the latest persisted device names when the adapter starts.
+
 ### 0.0.3
 
 - Synchronize configured device names, hosts and MAC addresses with the ioBroker object tree.
@@ -134,3 +138,4 @@ Captures are appended to `measurements/<deviceId>.jsonl`. Change only one settin
 ## License
 
 MIT License. See [LICENSE](LICENSE).
+

@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mitsubishi-smartmair",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "news": {
+      "0.0.4": {
+        "en": "Load the latest persisted device names when the adapter starts",
+        "de": "Beim Adapterstart werden die zuletzt gespeicherten GerÃ¤tenamen geladen"
+      },
       "0.0.3": {
         "en": "Synchronize configured device names and network metadata with objects",
         "de": "Konfigurierte Geraetenamen und Netzwerkdaten mit Objekten synchronisieren"
@@ -99,3 +103,4 @@
     }
   ]
 }
+
