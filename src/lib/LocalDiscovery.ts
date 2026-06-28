@@ -1,6 +1,4 @@
 import dgram from "node:dgram";
-import http from "node:http";
-import https from "node:https";
 import os from "node:os";
 import * as tls from "node:tls";
 import type { ConfiguredDevice, DiscoveredDevice } from "./types";
@@ -8,20 +6,24 @@ import type { ConfiguredDevice, DiscoveredDevice } from "./types";
 export interface LocalDiscoveryOptions {
   timeoutMs: number;
   scanPorts: number[];
+  seedAddresses?: string[];
+  subnets?: string[];
+  concurrency?: number;
 }
 
 export async function discoverLocalDevices(options: LocalDiscoveryOptions): Promise<DiscoveredDevice[]> {
   const candidates = new Map<string, DiscoveredDevice>();
+  const addresses = localSubnetProbeAddresses(options.seedAddresses, options.subnets);
+  const [ssdpDevices, tlsDevices] = await Promise.all([
+    discoverViaSsdp(options.timeoutMs),
+    discoverViaTlsCertificate(options, addresses)
+  ]);
 
-  for (const device of await discoverViaSsdp(options.timeoutMs)) {
+  for (const device of ssdpDevices) {
     candidates.set(device.id, device);
   }
 
-  for (const device of await discoverViaTlsCertificate(options)) {
-    candidates.set(device.id, device);
-  }
-
-  for (const device of await discoverViaHttpFingerprint(options)) {
+  for (const device of tlsDevices) {
     candidates.set(device.id, device);
   }
 
@@ -29,28 +31,40 @@ export async function discoverLocalDevices(options: LocalDiscoveryOptions): Prom
 }
 
 export function mergeDevices(configured: ConfiguredDevice[], discovered: DiscoveredDevice[]): ConfiguredDevice[] {
-  const merged = new Map<string, ConfiguredDevice>();
+  const merged = configured.map((device) => ({ ...device }));
 
-  for (const device of configured) {
-    merged.set(device.id, device);
-  }
+  const normalizedMac = (mac: string | undefined): string | undefined => mac?.toLowerCase().replace(/[^a-f0-9]/g, "");
 
   for (const device of discovered) {
-    const existingById = merged.get(device.id);
-    const existingByHost = [...merged.values()].find((entry) => entry.host && entry.host === device.host);
+    const mac = normalizedMac(device.mac);
+    const index = merged.findIndex(
+      (entry) =>
+        entry.id === device.id ||
+        (mac !== undefined && normalizedMac(entry.mac) === mac) ||
+        (entry.host !== undefined && entry.host === device.host)
+    );
 
-    if (!existingById && !existingByHost) {
-      merged.set(device.id, {
+    if (index === -1) {
+      merged.push({
         id: device.id,
         name: device.name,
         host: device.host,
         mac: device.mac,
         source: "discovered"
       });
+      continue;
     }
+
+    const existing = merged[index];
+    merged[index] = {
+      ...existing,
+      id: existing.id || device.id,
+      host: device.host ?? existing.host,
+      mac: device.mac ?? existing.mac
+    };
   }
 
-  return [...merged.values()];
+  return merged;
 }
 
 async function discoverViaSsdp(timeoutMs: number): Promise<DiscoveredDevice[]> {
@@ -67,8 +81,17 @@ async function discoverViaSsdp(timeoutMs: number): Promise<DiscoveredDevice[]> {
   ].join("\r\n");
 
   return await new Promise((resolve) => {
+    let finished = false;
     const finish = (): void => {
-      socket.close();
+      if (finished) {
+        return;
+      }
+      finished = true;
+      try {
+        socket.close();
+      } catch {
+        // Socket may already be closed after a bind or send error.
+      }
       resolve([...found.values()]);
     };
 
@@ -87,45 +110,31 @@ async function discoverViaSsdp(timeoutMs: number): Promise<DiscoveredDevice[]> {
       });
     });
 
+    socket.once("error", finish);
     socket.bind(() => {
-      socket.setBroadcast(true);
-      socket.send(searchPayload, 1900, "239.255.255.250");
+      try {
+        socket.setBroadcast(true);
+        socket.send(searchPayload, 1900, "239.255.255.250", (error) => error && finish());
+      } catch {
+        finish();
+      }
     });
 
     setTimeout(finish, timeoutMs);
   });
 }
 
-async function discoverViaHttpFingerprint(options: LocalDiscoveryOptions): Promise<DiscoveredDevice[]> {
-  const addresses = localSubnetProbeAddresses();
+async function discoverViaTlsCertificate(
+  options: LocalDiscoveryOptions,
+  addresses: string[]
+): Promise<DiscoveredDevice[]> {
   const discovered: DiscoveredDevice[] = [];
+  const ports = [51443, ...options.scanPorts.filter((port) => port !== 51443 && port > 1024)];
 
-  await Promise.all(
-    addresses.map(async (address) => {
-      const fingerprint = await readMhiHttpFingerprint(address, options.scanPorts, Math.min(options.timeoutMs, 1200));
-
-      if (fingerprint) {
-        discovered.push({
-          id: normalizeDeviceId(address),
-          name: fingerprint.name ?? `Smart M-Air ${address}`,
-          host: address,
-          model: fingerprint.model,
-          source: "discovered"
-        });
-      }
-    })
-  );
-
-  return discovered;
-}
-
-async function discoverViaTlsCertificate(options: LocalDiscoveryOptions): Promise<DiscoveredDevice[]> {
-  const addresses = localSubnetProbeAddresses();
-  const discovered: DiscoveredDevice[] = [];
-  const ports = options.scanPorts.includes(51443) ? options.scanPorts : [51443, ...options.scanPorts];
-
-  await Promise.all(
-    addresses.map(async (address) => {
+  await mapWithConcurrency(
+    addresses,
+    options.concurrency ?? 32,
+    async (address) => {
       const fingerprint = await readMhiTlsFingerprint(address, ports, Math.min(options.timeoutMs, 1200));
 
       if (fingerprint) {
@@ -137,14 +146,15 @@ async function discoverViaTlsCertificate(options: LocalDiscoveryOptions): Promis
           source: "discovered"
         });
       }
-    })
+    }
   );
 
   return discovered;
 }
 
-function localSubnetProbeAddresses(): string[] {
+export function localSubnetProbeAddresses(seedAddresses: string[] = [], subnets: string[] = []): string[] {
   const addresses = new Set<string>();
+  const prefixes = new Set<string>();
 
   for (const networkInterface of Object.values(os.networkInterfaces())) {
     for (const address of networkInterface ?? []) {
@@ -157,32 +167,56 @@ function localSubnetProbeAddresses(): string[] {
         continue;
       }
 
-      const prefix = parts.slice(0, 3).join(".");
-      for (let host = 1; host < 255; host += 1) {
-        addresses.add(`${prefix}.${host}`);
-      }
+      prefixes.add(parts.slice(0, 3).join("."));
     }
   }
 
-  return [...addresses];
+  for (const address of seedAddresses) {
+    const parts = address.split(".");
+    if (parts.length === 4 && parts.every((part) => /^\d+$/.test(part) && Number(part) <= 255)) {
+      prefixes.add(parts.slice(0, 3).join("."));
+    }
+  }
+
+  for (const subnet of subnets) {
+    const normalized = subnet.trim().replace(/\.0\/24$/, "");
+    const parts = normalized.split(".");
+    if (parts.length === 3 && parts.every((part) => /^\d+$/.test(part) && Number(part) <= 255)) {
+      prefixes.add(normalized);
+    }
+  }
+
+  for (const prefix of prefixes) {
+    for (let host = 1; host < 255; host += 1) {
+      addresses.add(`${prefix}.${host}`);
+    }
+  }
+
+  return [...addresses].sort((left, right) => ipToNumber(left) - ipToNumber(right));
 }
 
-async function readMhiHttpFingerprint(
-  host: string,
-  ports: number[],
-  timeoutMs: number
-): Promise<{ name?: string; model?: string } | undefined> {
-  for (const port of ports) {
-    const response = await readHttpProbe(host, port, timeoutMs);
+async function mapWithConcurrency<T>(
+  items: string[],
+  concurrency: number,
+  worker: (item: string) => Promise<T>
+): Promise<void> {
+  const queue = [...items];
+  const workerCount = Math.min(Math.max(1, concurrency), queue.length);
 
-    if (response && looksLikeMhiDevice(response)) {
-      return {
-        name: `Smart M-Air ${host}`
-      };
-    }
-  }
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (queue.length > 0) {
+        const item = queue.shift();
+        if (item !== undefined) {
+          await worker(item);
+        }
+      }
+    })
+  );
+}
 
-  return undefined;
+function ipToNumber(address: string): number {
+  return address.split(".").reduce((result, part) => result * 256 + Number(part), 0);
 }
 
 async function readMhiTlsFingerprint(
@@ -236,48 +270,6 @@ async function readTlsCertificate(
       resolve(undefined);
     });
     socket.on("error", () => resolve(undefined));
-  });
-}
-
-async function readHttpProbe(host: string, port: number, timeoutMs: number): Promise<string | undefined> {
-  return (await requestProbe("http", host, port, timeoutMs)) ?? (await requestProbe("https", host, port, timeoutMs));
-}
-
-async function requestProbe(
-  protocol: "http" | "https",
-  host: string,
-  port: number,
-  timeoutMs: number
-): Promise<string | undefined> {
-  return await new Promise((resolve) => {
-    const options: http.RequestOptions = {
-      host,
-      port,
-      path: "/",
-      method: "GET",
-      timeout: timeoutMs
-    };
-    const onResponse = (response: http.IncomingMessage): void => {
-      const chunks: Buffer[] = [];
-
-      response.on("data", (chunk: Buffer) => chunks.push(chunk));
-      response.on("end", () => {
-        const headers = JSON.stringify(response.headers);
-        const body = Buffer.concat(chunks).toString("utf8");
-        resolve(`${headers}\n${body}`);
-      });
-    };
-    const request =
-      protocol === "http"
-        ? http.request(options, onResponse)
-        : https.request({ ...options, rejectUnauthorized: false }, onResponse);
-
-    request.once("timeout", () => {
-      request.destroy();
-      resolve(undefined);
-    });
-    request.once("error", () => resolve(undefined));
-    request.end();
   });
 }
 

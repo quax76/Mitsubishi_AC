@@ -59,5 +59,6 @@ export interface AdapterNativeConfig {
   discoveryEnabled?: boolean;
   discoveryTimeoutMs?: number;
   discoveryScanPorts?: number[] | string;
+  discoverySubnets?: string[] | string;
   devices?: ConfiguredDevice[];
 }
