@@ -29,7 +29,6 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "prepare": "tsc -p tsconfig.json",
     "test:protocol": "pnpm build && node --test test/aircon-stat-decoder.test.js test/aircon-stat-encoder.test.js test/local-discovery.test.js",
     "watch": "tsc -p tsconfig.json --watch",
     "start": "node build/main.js"
