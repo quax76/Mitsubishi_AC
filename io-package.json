@@ -1,8 +1,12 @@
 {
   "common": {
     "name": "mitsubishi-smartmair",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "news": {
+      "0.0.3": {
+        "en": "Synchronize configured device names and network metadata with objects",
+        "de": "Konfigurierte Geraetenamen und Netzwerkdaten mit Objekten synchronisieren"
+      },
       "0.0.2": {
         "en": "Reliable local discovery and persistent device configuration",
         "de": "Zuverlaessige lokale Erkennung und dauerhafte Geraetekonfiguration"

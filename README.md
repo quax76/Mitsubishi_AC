@@ -116,6 +116,10 @@ Captures are appended to `measurements/<deviceId>.jsonl`. Change only one settin
 
 ## Changelog
 
+### 0.0.3
+
+- Synchronize configured device names, hosts and MAC addresses with the ioBroker object tree.
+
 ### 0.0.2
 
 - Fixed GitHub installation metadata and committed build output.
